@@ -45,7 +45,6 @@ func main() {
 	if err := sock.JoinUserGroup(ctx); err != nil {
 		log.Fatalf("%v", err)
 	}
-	// go InitNewClient()
 	irc, err := InitNewClient(*user_set)
 	if err != nil {
 		log.Fatalf("failed to initialize client, %v", err)

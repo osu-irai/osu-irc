@@ -46,9 +46,6 @@ func InitNewClient(allowed set.Set[string]) (*OsuClient, error) {
 
 	client := irc.NewClient(conn, conf)
 	go client.Run()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to run irc")
-	// }
 	log.Printf("client is running")
 	osu_client := OsuClient{
 		client:  *client,
