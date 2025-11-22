@@ -33,7 +33,8 @@ type From struct {
 	AvatarUrl string `json:"avatarUrl"`
 }
 type Client struct {
-	conn signalr.Client
+	conn    signalr.Client
+	channel chan<- RequestWithTarget
 }
 
 func NewClient(url string, channel chan<- RequestWithTarget) (*Client, error) {
@@ -50,7 +51,8 @@ func NewClient(url string, channel chan<- RequestWithTarget) (*Client, error) {
 	}
 	log.Printf("created a client")
 	return &Client{
-		conn: conn,
+		conn:    conn,
+		channel: channel,
 	}, nil
 }
 
@@ -61,6 +63,7 @@ func (c *Client) Connect(ctx context.Context) error {
 
 func (c *Client) Disconnect() error {
 	c.conn.Stop()
+	close(c.channel)
 	return nil
 }
 
@@ -80,6 +83,6 @@ type Receiver struct {
 }
 
 func (r *Receiver) ReceiveFullRequest(req RequestWithTarget) {
-	log.Printf("%d received %v - %v", req.Target, req.Request.Beatmap.Artist, req.Request.Beatmap.Title)
+	log.Printf("%v received %v - %v", req.Target, req.Request.Beatmap.Artist, req.Request.Beatmap.Title)
 	r.channel <- req
 }
