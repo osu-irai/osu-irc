@@ -20,6 +20,7 @@ type ApiClient struct {
 	token  string
 }
 
+// create initial client configuration
 func CreateClientConfig() ApiClient {
 	return ApiClient{
 		config: ClientConfig{
@@ -30,6 +31,7 @@ func CreateClientConfig() ApiClient {
 	}
 }
 
+// get auth token from the main backend
 func (c *ApiClient) PrepareAuthToken() error {
 	body, err := json.Marshal(c.config)
 	if err != nil {
@@ -58,6 +60,7 @@ func (c *ApiClient) PrepareAuthToken() error {
 
 }
 
+// get IDs of users that should receive notifications
 func (c *ApiClient) GetUserIdList() ([]string, error) {
 	err := c.PrepareAuthToken()
 	if err != nil {
