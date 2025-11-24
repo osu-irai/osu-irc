@@ -69,9 +69,29 @@ func (client *OsuClient) MessageLoop(requestChannel <-chan RequestWithTarget) {
 
 }
 
+func (client *OsuClient) ReceiveUserChanges(userChangesChan <-chan UserChange) {
+	go func() {
+		for {
+			req, more := <-userChangesChan
+			if more {
+				if req.isAdded {
+					client.allowed.Insert(req.username)
+				} else {
+					client.allowed.Remove(req.username)
+				}
+			} else {
+				fmt.Printf("Channel closed")
+				return
+			}
+		}
+	}()
+}
+
 func (c *OsuClient) SendMessageTo(request RequestWithTarget) error {
-	formatted := formatMessage(request)
-	log.Printf("formatted message: %v", formatted)
+	if !c.allowed.Contains(request.Target) {
+		log.Printf("%v does not allow IRC requests", request.Target)
+		return nil
+	}
 	message := irc.Message{
 		Command: "PRIVMSG",
 		Params: []string{
@@ -84,6 +104,7 @@ func (c *OsuClient) SendMessageTo(request RequestWithTarget) error {
 		return fmt.Errorf("failed to write to IRC: %v", err)
 	}
 	log.Printf("sent message to %v", request.Target)
+
 	return nil
 }
 

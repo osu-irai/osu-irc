@@ -37,22 +37,21 @@ type Client struct {
 	channel chan<- RequestWithTarget
 }
 
-func NewClient(url string, channel chan<- RequestWithTarget) (*Client, error) {
+func NewClient(url string, channel chan<- RequestWithTarget, userChanges chan<- UserChange) (*Client, error) {
 	ctx := context.Background()
 	connection, err := signalr.NewHTTPConnection(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create signalr connection")
 	}
 	conn, err := signalr.NewClient(ctx,
-		signalr.WithConnection(connection), signalr.WithReceiver(&Receiver{channel: channel}), signalr.Logger(nil, false))
+		signalr.WithConnection(connection), signalr.WithReceiver(&Receiver{channel: channel, userChanges: userChanges}), signalr.Logger(nil, false))
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a signalr client")
 	}
 	log.Printf("created a client")
 	return &Client{
-		conn:    conn,
-		channel: channel,
+		conn: conn,
 	}, nil
 }
 
@@ -79,10 +78,16 @@ func (c *Client) JoinUserGroup(ctx context.Context) error {
 
 type Receiver struct {
 	signalr.Receiver
-	channel chan<- RequestWithTarget
+	channel     chan<- RequestWithTarget
+	userChanges chan<- UserChange
 }
 
 func (r *Receiver) ReceiveFullRequest(req RequestWithTarget) {
 	log.Printf("%v received %v - %v", req.Target, req.Request.Beatmap.Artist, req.Request.Beatmap.Title)
 	r.channel <- req
+}
+
+func (r *Receiver) ReceiveIrcSettingsChange(username string, newIrcState bool) {
+	log.Printf("User %v changed IRC to %v", username, newIrcState)
+	r.userChanges <- UserChange{username: username, isAdded: newIrcState}
 }

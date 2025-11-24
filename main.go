@@ -13,10 +13,16 @@ const (
 	url = "http://localhost:5076/api/ws/notifications"
 )
 
+type UserChange struct {
+	username string
+	isAdded  bool
+}
+
 func main() {
 	client := CreateClientConfig()
 	users, err := client.GetUserIdList()
 	requests := make(chan RequestWithTarget)
+	userChanges := make(chan UserChange)
 
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -24,7 +30,7 @@ func main() {
 	user_set := set.From(users)
 	log.Printf("found %d users", user_set.Size())
 
-	sock, err := NewClient(url, requests)
+	sock, err := NewClient(url, requests, userChanges)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -50,7 +56,8 @@ func main() {
 		log.Fatalf("failed to initialize client, %v", err)
 	}
 
-	irc.MessageLoop(requests)
+	go irc.MessageLoop(requests)
+	go irc.ReceiveUserChanges(userChanges)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
