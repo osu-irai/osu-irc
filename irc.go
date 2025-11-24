@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/hashicorp/go-set/v3"
 	"gopkg.in/irc.v4"
@@ -26,10 +27,20 @@ func CreateClient() irc.ClientConfig {
 		Handler: irc.HandlerFunc(func(c *irc.Client, m *irc.Message) {
 			if m.Command == "PRIVMSG" {
 				log.Printf("message from %v: %v", m.Name, m.String())
-
+				if strings.HasPrefix(m.Param(1), "!") {
+					log.Printf("called command %v", handleCommands(m.Name, m.Param(1)))
+				}
 			}
 		}),
 	}
+}
+
+func handleCommands(target string, command string) string {
+	switch command {
+	case "!info":
+		return "This is iraibot, IRC interface for Irai"
+	}
+	return ""
 }
 
 func JoinIrcServer() (net.Conn, error) {
@@ -59,7 +70,7 @@ func (client *OsuClient) MessageLoop(requestChannel <-chan RequestWithTarget) {
 		for {
 			req, more := <-requestChannel
 			if more {
-				client.SendMessageTo(req)
+				client.sendRequest(req)
 			} else {
 				fmt.Printf("Channel closed")
 				return
@@ -87,24 +98,49 @@ func (client *OsuClient) ReceiveUserChanges(userChangesChan <-chan UserChange) {
 	}()
 }
 
-func (c *OsuClient) SendMessageTo(request RequestWithTarget) error {
-	if !c.allowed.Contains(request.Target) {
-		log.Printf("%v does not allow IRC requests", request.Target)
-		return nil
-	}
+func (c *OsuClient) SendCommandResponse(target string, response string) error {
 	message := irc.Message{
 		Command: "PRIVMSG",
 		Params: []string{
-			request.Target,
-			formatMessage(request),
+			target,
+			response,
 		},
 	}
+
 	err := c.client.WriteMessage(&message)
 	if err != nil {
 		return fmt.Errorf("failed to write to IRC: %v", err)
 	}
-	log.Printf("sent message to %v", request.Target)
+	log.Printf("sent message to %v", target)
 
+	return nil
+}
+
+func (c *OsuClient) sendPrivateMessage(message string, target string) error {
+	ircMessage := irc.Message{
+		Command: "PRIVMSG",
+		Params: []string{
+			target,
+			message,
+		},
+	}
+	err := c.client.WriteMessage(&ircMessage)
+	if err != nil {
+		return fmt.Errorf("failed to write to IRC: %v", err)
+	}
+	log.Printf("sent message to %v", target)
+	return nil
+}
+
+func (c *OsuClient) sendRequest(request RequestWithTarget) error {
+	if !c.allowed.Contains(request.Target) {
+		log.Printf("%v does not allow IRC requests", request.Target)
+		return nil
+	}
+	err := c.sendPrivateMessage(request.Target, formatMessage(request))
+	if err != nil {
+		return fmt.Errorf("failed to write a request: %v", err)
+	}
 	return nil
 }
 
