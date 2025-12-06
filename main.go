@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/go-set/v3"
 )
 
-const (
-	rabbitmqUrl = "amqp://irai:iraipass@localhost:5672/"
+var (
+	rabbitmqUrl = os.Getenv("AMQP_URL")
 )
 
 type RequestWithTarget struct {
