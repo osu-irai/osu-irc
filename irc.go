@@ -75,9 +75,9 @@ func (client *OsuClient) ReceiveUserChanges(userChangesChan <-chan UserChange) {
 			req, more := <-userChangesChan
 			if more {
 				if req.isAdded {
-					client.allowed.Insert(req.username)
+					client.allowed.Insert(req.Username)
 				} else {
-					client.allowed.Remove(req.username)
+					client.allowed.Remove(req.Username)
 				}
 			} else {
 				fmt.Printf("Channel closed")

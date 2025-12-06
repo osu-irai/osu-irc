@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -10,12 +9,32 @@ import (
 )
 
 const (
-	url = "http://localhost:5076/api/ws/notifications"
+	rabbitmqUrl = "amqp://irai:iraipass@localhost:5672/"
 )
 
-type UserChange struct {
-	username string
-	isAdded  bool
+type RequestWithTarget struct {
+	Id      int     `json:"id"`
+	Target  string  `json:"target"`
+	Request Request `json:"request"`
+}
+type Request struct {
+	Beatmap Beatmap `json:"beatmap"`
+	From    From    `json:"from"`
+	Source  int     `json:"source"`
+}
+
+type Beatmap struct {
+	BeatmapId    int     `json:"beatmapId"`
+	BeatmapsetId int     `json:"beatmapsetId"`
+	Artist       string  `json:"artist"`
+	Title        string  `json:"title"`
+	Difficulty   string  `json:"difficulty"`
+	Stars        float64 `json:"stars"`
+}
+type From struct {
+	Id        int    `json:"id"`
+	Username  string `json:"username"`
+	AvatarUrl string `json:"avatarUrl"`
 }
 
 func main() {
@@ -30,27 +49,9 @@ func main() {
 	user_set := set.From(users)
 	log.Printf("found %d users", user_set.Size())
 
-	sock, err := NewClient(url, requests, userChanges)
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
+	go initMessageBus(requests)
+	go initSettingsChangeBus(userChanges)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	if err := sock.Connect(ctx); err != nil {
-		log.Fatalf("%v", err)
-	}
-	defer func(client *Client) {
-		err := client.Disconnect()
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-	}(sock)
-
-	if err := sock.JoinUserGroup(ctx); err != nil {
-		log.Fatalf("%v", err)
-	}
 	irc, err := InitNewClient(*user_set)
 	if err != nil {
 		log.Fatalf("failed to initialize client, %v", err)
